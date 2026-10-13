@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test background-agent/test/*.test.mjs session-naming/test/*.test.mjs anthropic-web/test/*.test.mjs test/*.test.mjs",
+    "typecheck": "tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node statusline.ts background-agent/index.ts session-naming/index.ts anthropic-web/index.ts"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.2.0",
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

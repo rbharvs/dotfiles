@@ -1,0 +1,11 @@
+theme = Rose Pine
+background-opacity = 0.88
+background-blur = 8
+window-decoration = none
+window-padding-y = 8
+
+# Install a licensed copy in ~/Library/Fonts.
+font-family = Berkeley Mono
+# Berkeley Mono zero styles: omit this line (or use ss02) for dotted; ss01 for slashed; ss03 for split.
+# After changing it, use Ghostty → Reload Configuration.
+font-feature = ss01

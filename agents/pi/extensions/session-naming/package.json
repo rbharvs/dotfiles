@@ -1,0 +1,12 @@
+{
+  "name": "session-naming",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}

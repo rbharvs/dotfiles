@@ -1,0 +1,14 @@
+{
+  "name": "pi-anthropic-web",
+  "private": true,
+  "version": "1.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

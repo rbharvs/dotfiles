@@ -1,0 +1,11 @@
+result
+result-*
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+home/.config/karabiner/automatic_backups/
+home/.config/karabiner/assets/

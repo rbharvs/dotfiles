@@ -1,0 +1,23 @@
+onboarding = false
+[theme]
+name = "rose-pine"
+
+[ui]
+prompt_new_tab_name = false
+show_agent_labels_on_pane_borders = false
+agent_panel_sort = "spaces"
+
+# Show the session name above its workspace.
+[ui.sidebar.agents.rows_by_agent]
+pi = [
+  ["state_icon", { token = "$session", fg = "#c4a7e7", bold = true, dim = false }],
+  [{ token = "workspace", fg = "#6e6a86", bold = false, dim = false }],
+]
+
+# Forward Kitty graphics protocol sequences to local terminals such as Ghostty.
+[experimental]
+kitty_graphics = true
+
+# Package updates are managed by Nix.
+[update]
+version_check = false
