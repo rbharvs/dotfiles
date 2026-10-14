@@ -8,7 +8,7 @@
     home-manager.url = "github:nix-community/home-manager/release-26.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
-    herdr.url = "github:herdrdev/herdr/v0.8.0";
+    herdr.url = "github:herdrdev/herdr/v0.9.5";
     # Includes the upstream fix for the Nix package's stale esbuild check.
     pi.url = "github:earendil-works/pi/0a8cfff4cbcbbdb0071ebe056f1fcb5710e7fcf0";
   };
@@ -38,7 +38,10 @@
         ];
         _module.args = { inherit herdr pi; };
         home-manager.sharedModules = [ self.homeModules.default ];
-        home-manager.extraSpecialArgs = { inherit herdr; };
+        home-manager.extraSpecialArgs = {
+          inherit herdr;
+          herdrSource = inputs.herdr;
+        };
       };
       homeModules.default = import ./modules/home.nix;
 

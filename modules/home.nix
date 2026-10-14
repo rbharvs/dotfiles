@@ -3,6 +3,7 @@
   lib,
   pkgs,
   herdr,
+  herdrSource,
   dotfilesCheckout,
   ...
 }:
@@ -17,7 +18,6 @@ let
   skills = [
     "alignment"
     "code-review"
-    "herdr"
     "librarian"
   ];
 in
@@ -31,6 +31,7 @@ in
     ".config/herdr/config.toml".source = live "home/.config/herdr/config.toml";
     # Karabiner replaces individual file symlinks when saving, so link the directory.
     ".config/karabiner".source = live "home/.config/karabiner";
+    ".agents/skills/herdr".source = "${herdrSource}/skills/herdr";
     ".pi/agent/AGENTS.md".source = live "agents/AGENTS.md";
     ".pi/agent/themes/rose-pine.json".source = live "agents/pi/themes/rose-pine.json";
   }

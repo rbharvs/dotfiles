@@ -5,7 +5,6 @@ their upstream licenses and attribution:
 
 | Component | License | Provenance |
 | --- | --- | --- |
-| Herdr skill | [Apache-2.0](agents/skills/herdr/LICENSE) | [Upstream record](agents/skills/herdr/UPSTREAM.md) |
 | Librarian skill | [Apache-2.0](agents/skills/librarian/LICENSE) | [Upstream record and modifications](agents/skills/librarian/UPSTREAM.md) |
 
 Preserve these notices when redistributing the components.
