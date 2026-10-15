@@ -59,6 +59,7 @@ in
     environment.systemPackages = [
       pi
       herdr
+      pkgs.agent-browser
       pkgs.ghostty-bin
       pkgs.gh
       pkgs.awscli2

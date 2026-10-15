@@ -32,6 +32,7 @@ in
     # Karabiner replaces individual file symlinks when saving, so link the directory.
     ".config/karabiner".source = live "home/.config/karabiner";
     ".agents/skills/herdr".source = "${herdrSource}/skills/herdr";
+    ".agents/skills/agent-browser".source = "${pkgs.agent-browser}/skills/agent-browser";
     ".pi/agent/AGENTS.md".source = live "agents/AGENTS.md";
     ".pi/agent/themes/rose-pine.json".source = live "agents/pi/themes/rose-pine.json";
   }

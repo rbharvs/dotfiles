@@ -32,7 +32,9 @@ Declare additional linked resources in `modules/home.nix`.
 
 Herdr's skill links to its pinned upstream source in the Nix store, not this
 checkout. Updating the Herdr input updates its executable and unmodified skill
-together on activation.
+together on activation. Agent Browser's skill links directly to its Nix package,
+so its executable and skill also update together. Browser profiles, authentication
+state, and downloaded browsers remain outside Nix.
 
 Karabiner's directory is linked because its UI replaces individual files. Review
 UI-authored configuration changes before committing; generated backups are ignored.
