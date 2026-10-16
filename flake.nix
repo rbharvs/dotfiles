@@ -9,8 +9,7 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
     herdr.url = "github:herdrdev/herdr/v0.9.5";
-    # Includes the upstream fix for the Nix package's stale esbuild check.
-    pi.url = "github:earendil-works/pi/0a8cfff4cbcbbdb0071ebe056f1fcb5710e7fcf0";
+    pi.url = "github:earendil-works/pi/v1.3.0";
   };
 
   outputs =
