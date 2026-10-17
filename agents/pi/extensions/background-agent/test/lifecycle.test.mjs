@@ -18,10 +18,12 @@ afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-test("registers only in a root Herdr session", () => {
+test("registers only below the delegation limit", () => {
   for (const env of [
     {},
-    { HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_WORKSPACE_ID: "w1", PI_BACKGROUND_AGENT_DEPTH: "1" },
+    ...["2", "3", "-1"].map((depth) => ({
+      HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_WORKSPACE_ID: "w1", PI_BACKGROUND_AGENT_DEPTH: depth,
+    })),
     { HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_WORKSPACE_ID: "w1", PI_BACKGROUND_AGENT_DEPTH: "invalid" },
   ]) {
     const tools = [];
@@ -48,6 +50,43 @@ test("registers only in a root Herdr session", () => {
   }
   assert.equal(typeof messageRenderers.get(COMPLETION_MESSAGE_TYPE), "function");
 });
+
+for (const { depth, activeTools, expectedTools } of [
+  {
+    depth: "0",
+    activeTools: ["read", BACKGROUND_AGENT_TOOL_NAME, BACKGROUND_AGENT_RESULT_TOOL_NAME],
+    expectedTools: "read,background_agent,background_agent_result",
+  },
+  {
+    depth: "1",
+    activeTools: ["read", BACKGROUND_AGENT_TOOL_NAME, BACKGROUND_AGENT_RESULT_TOOL_NAME],
+    expectedTools: "read",
+  },
+  { depth: "0", activeTools: ["read"], expectedTools: "read" },
+]) {
+  test(`inherits only allowed active tools at depth ${depth}: ${expectedTools}`, async () => {
+    const harness = await createHarness({
+      activeTools,
+      env: {
+        HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_WORKSPACE_ID: "w1",
+        PI_BACKGROUND_AGENT_DEPTH: depth,
+      },
+    });
+    tempDirs.push(harness.dir);
+
+    await harness.agentTool.execute("start", { prompt: "Work" }, undefined, undefined, harness.ctx);
+    assert.ok(harness.calls[0].includes(`PI_BACKGROUND_AGENT_DEPTH=${Number(depth) + 1}`));
+    const start = harness.calls.find((args) => args[0] === "agent" && args[1] === "start");
+    assert.equal(start[start.indexOf("--tools") + 1], expectedTools);
+
+    await appendFile(harness.childPath(), `${JSON.stringify({
+      type: "message",
+      message: { role: "assistant", content: [{ type: "text", text: "Done" }], stopReason: "stop" },
+    })}\n`);
+    harness.prompts[0].resolve(ok({ agent: { agent_status: "idle" } }));
+    await waitFor(() => harness.closedTabs.length === 1, "owned tab was not closed");
+  });
+}
 
 test("runs a new session to durable completion before notification and cleanup", async () => {
   const harness = await createHarness();
@@ -78,7 +117,7 @@ test("runs a new session to durable completion before notification and cleanup",
     "agent", "start", HANDLE, "--kind", "pi", "--pane", "w1:p2", "--",
     "--session-id", CHILD_ID, "--session-dir", harness.dir,
     "--model", "openai/gpt-5.6-luna", "--thinking", "max",
-    "--tools", "read,bash", "--approve",
+    "--tools", "read,bash,background_agent,background_agent_result", "--approve",
   ]);
   assert.deepEqual(harness.calls[2], [
     "agent", "prompt", HANDLE, "Review the authentication flow",
@@ -249,7 +288,7 @@ test("allows only settled follow-ups and resumes immutable session configuration
     "agent", "start", HANDLE, "--kind", "pi", "--pane", "w1:p3", "--",
     "--session", harness.childPath(),
     "--model", "openai/gpt-5.6-luna", "--thinking", "low",
-    "--tools", "read,bash", "--approve",
+    "--tools", "read,bash,background_agent,background_agent_result", "--approve",
   ]);
 
   const callsBefore = harness.calls.length;

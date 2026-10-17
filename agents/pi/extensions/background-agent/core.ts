@@ -3,7 +3,7 @@ import { open, readdir, stat } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 
-export const MAX_DELEGATION_DEPTH = 1;
+export const MAX_DELEGATION_DEPTH = 2;
 export const BACKGROUND_AGENT_TOOL_NAME = "background_agent";
 export const BACKGROUND_AGENT_RESULT_TOOL_NAME = "background_agent_result";
 export const STATE_ENTRY_TYPE = "background-agent-state";
@@ -1332,7 +1332,8 @@ export function installBackgroundAgent(
         model,
         thinkingLevel,
         tools: (pi.getActiveTools?.() ?? []).filter(
-          (name) => name !== BACKGROUND_AGENT_TOOL_NAME && name !== BACKGROUND_AGENT_RESULT_TOOL_NAME,
+          (name) => childDepth < MAX_DELEGATION_DEPTH ||
+            (name !== BACKGROUND_AGENT_TOOL_NAME && name !== BACKGROUND_AGENT_RESULT_TOOL_NAME),
         ),
         trusted: ctx.isProjectTrusted?.() === true,
         prompt,

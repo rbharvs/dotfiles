@@ -9,7 +9,11 @@ Herdr's pane/workspace environment, and a persisted parent Pi session.
 - `background_agent_result` collects a persisted result by run ID.
 
 A session has one active run. Follow-ups retain its model, thinking level, working
-directory, and tool set. Children cannot launch further background agents.
+directory, and tool set. Delegation permits two levels: parent → child →
+grandchild. Children inherit active delegation tools; grandchildren do not.
+`MAX_DELEGATION_DEPTH` in `core.ts` sets the limit. `PI_BACKGROUND_AGENT_DEPTH`
+tracks the current level, starting at zero. The limit bounds nesting, not the
+number of concurrent agents.
 
 Completion is asynchronous. Continue other work until the completion notification,
 then collect the result. Results use Pi's tool-output limits; truncated results
