@@ -9,7 +9,7 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
     herdr.url = "github:herdrdev/herdr/v0.9.5";
-    pi.url = "github:earendil-works/pi/v1.3.0";
+    pi.url = "github:earendil-works/pi/v1.4.0";
   };
 
   outputs =
