@@ -47,9 +47,11 @@ test("concurrent launches: results precede notices; outcomes, environment, and p
     assert.ok(output.startsWith(h.tmp), "output lives under the OS temporary directory");
     assert.equal((await stat(output)).mode & 0o777, 0o600);
     assert.equal((await stat(dirname(output))).mode & 0o777, 0o700);
-    const notices = h.notices().filter((n) => n.details.output === output);
+    const notices = h.notices().filter((n) => n.details.outputPath === output);
     assert.equal(notices.length, 1);
     assert.deepEqual(notices[0].details.outcome, outcome);
+    const status = outcome.kind === "exit" ? `exited with code ${outcome.code}` : `terminated by signal ${outcome.signal}`;
+    assert.equal(notices[0].content, `Command ${status}. Output file: ${output}`);
     assert.ok(entries.indexOf(notices[0]) > lastResult, "notice follows every launch result of the batch");
   }
   // Steering, not follow-up: the first notice enters before the next assistant response.
@@ -67,6 +69,49 @@ test("concurrent launches: results precede notices; outcomes, environment, and p
   assert.match(env, new RegExp(`sid=${h.session.sessionManager.getSessionId()}\n`));
   assert.match(env, /stdin=1\nhi-from-prefix\n/);
   assert.ok(env.includes(join(h.agentDir, "bin")));
+});
+
+test("direct and codemode launches return a file path and the launched shell PID", { timeout: 10000 }, async (t) => {
+  for (const mode of ["direct", "codemode"]) {
+    await t.test(mode, async (t) => {
+      let h;
+      h = await startSession(t, {
+        responses: [
+          () => {
+            const command = `printf '%s\\n' "$$"; exec 3>${join(h.root, "alive")}; echo up >&3; read -r _ < ${join(h.root, "release")}; echo finished`;
+            return batch(mode === "direct" ? run("launch", command) : fauxToolCall("codemode", {
+              code: `text(await tools.run_and_notify(${JSON.stringify({ command })}));`,
+            }, { id: "launch" }));
+          },
+          done("launched"),
+          done("notified"),
+        ],
+      });
+      fifo(join(h.root, "release"));
+      const child = holders(fifo(join(h.root, "alive")));
+      await h.session.prompt("go");
+      await child.saw("up");
+      const result = h.toolResults.find((e) => e.toolCallId === "launch").result;
+      const launch = mode === "direct" ? result.structuredContent : (() => {
+        const text = result.content.map((block) => block.text ?? "").join("\n");
+        return JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+      })();
+      assert.deepEqual(Object.keys(launch).sort(), ["outputPath", "pid"]);
+      assert.equal(await readFile(launch.outputPath, "utf8"), `${launch.pid}\n`);
+      assert.ok(Number.isInteger(launch.pid) && launch.pid > 0);
+      process.kill(launch.pid, 0); // The returned PID identifies the live shell, not a registry entry.
+      if (mode === "direct") {
+        assert.deepEqual(result.details, launch);
+        assert.equal(result.content[0].text, `Started. PID: ${launch.pid}. Output file: ${launch.outputPath}`);
+      }
+      await writeFile(join(h.root, "release"), "go\n");
+      await child.ended;
+      await h.submittedCount(1);
+      await h.session.waitForIdle();
+      assert.equal(h.notices()[0].details.outputPath, launch.outputPath);
+      assert.equal(await readFile(launch.outputPath, "utf8"), `${launch.pid}\nfinished\n`);
+    });
+  }
 });
 
 test("launch failures report an error, run nothing, notify nothing, and leave no output directory", { timeout: 10000 }, async (t) => {
@@ -135,10 +180,41 @@ test("Escape leaves commands running: a cleared queued notice is not replayed; a
   await h.submittedCount(2);
   await h.session.waitForIdle();
   assert.equal(h.submissions.length, 2, "no replay of A");
-  assert.deepEqual(h.notices().map((n) => n.details.output), [h.outputOf("B")]);
+  assert.deepEqual(h.notices().map((n) => n.details.outputPath), [h.outputOf("B")]);
   assert.equal(h.faux.state.callCount, 3, "B's notice started a new turn after the aborted one");
   assert.ok(JSON.stringify(h.contexts[2].messages).includes(h.outputOf("B")));
   assert.equal(await readFile(h.outputOf("B"), "utf8"), "B-done\n");
+});
+
+test("overlapping shutdowns both await process-group cleanup", { timeout: 10000 }, async (t) => {
+  let h;
+  h = await startSession(t, {
+    responses: [
+      () => batch(run("cmd", `exec 3>${join(h.root, "alive")}; exec ${shellQuote(process.execPath)} -e ${shellQuote(`
+        const fs = require("node:fs");
+        process.on("SIGTERM", () => fs.writeSync(3, "term\\n"));
+        setTimeout(() => process.exit(99), 5000);
+        fs.writeSync(3, "up\\n");
+      `)}`)),
+      done("launched"),
+    ],
+  });
+  const child = holders(fifo(join(h.root, "alive")));
+  await h.session.prompt("go");
+  await child.saw("up");
+
+  let firstSettled = false;
+  const first = h.session.extensionRunner.emit({ type: "session_shutdown", reason: "new" })
+    .then(() => { firstSettled = true; });
+  try {
+    await child.saw("term");
+    await h.session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
+    assert.equal(firstSettled, true, "quit must not bypass an in-progress shutdown cleanup");
+  } finally {
+    await first;
+    assert.equal(await child.ended, "up\nterm\n");
+  }
+  assert.equal(h.submissions.length, 0);
 });
 
 test("reload terminates process groups in parallel even after shell exit; logs survive and the new runtime works", { timeout: 10000 }, async (t) => {
@@ -188,5 +264,5 @@ test("reload terminates process groups in parallel even after shell exit; logs s
   await h.submittedCount(1);
   await h.session.waitForIdle();
   assert.equal(h.submissions[0].runtime, 2);
-  assert.deepEqual(h.notices().map((n) => n.details.output), [h.outputOf("after")]);
+  assert.deepEqual(h.notices().map((n) => n.details.outputPath), [h.outputOf("after")]);
 });

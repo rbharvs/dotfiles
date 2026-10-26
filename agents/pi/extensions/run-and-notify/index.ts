@@ -17,28 +17,29 @@ const SHUTDOWN_GRACE_MS = 300;
 
 type Outcome = { kind: "exit"; code: number } | { kind: "signal"; signal: NodeJS.Signals };
 interface Notice {
-  output: string;
+  outputPath: string;
   outcome: Outcome;
 }
 
 const Parameters = Type.Object(
-  { command: Type.String({ minLength: 1, description: "Finite foreground shell command" }) },
+  { command: Type.String({ minLength: 1, description: "Shell command to run without detaching or leaving background processes" }) },
   { additionalProperties: false },
 );
 
 export default function runAndNotify(pi: ExtensionAPI): void {
   // Commands this runtime owns. Undefined after session_shutdown: no launches, no notices.
   let running: Set<ChildProcess> | undefined = new Set();
+  let cleanup = Promise.resolve();
 
-  function notify(output: string, outcome: Outcome): void {
-    const status = outcome.kind === "exit" ? `exit code ${outcome.code}` : `signal ${outcome.signal}`;
+  function notify(outputPath: string, outcome: Outcome): void {
+    const status = outcome.kind === "exit" ? `exited with code ${outcome.code}` : `terminated by signal ${outcome.signal}`;
     try {
       pi.sendMessage<Notice>(
         {
           customType: NOTICE_TYPE,
-          content: `Command finished with ${status}. Output: ${output}`,
+          content: `Command ${status}. Output file: ${outputPath}`,
           display: true,
-          details: { output, outcome },
+          details: { outputPath, outcome },
         },
         { deliverAs: "steer", triggerTurn: true },
       );
@@ -51,17 +52,18 @@ export default function runAndNotify(pi: ExtensionAPI): void {
     name: "run_and_notify",
     label: "Run and notify",
     description:
-      "Start a finite foreground shell command in the current working directory and return immediately. " +
-      "Combined stdout and stderr go to a private temporary file whose path is returned; output is never " +
-      "included in results or notices, so read, search, or tail the file. When the command exits, a notice " +
-      "with its exit status and the file path is sent, starting a turn if the session is idle. Do not use " +
-      "&, daemonize, or start servers or watchers. Escape does not stop launched commands; session shutdown, " +
-      "reload, or replacement attempts to stop them without a notice. Escape can discard a queued notice; " +
-      "it is not replayed. Output files are ephemeral. Continue other work after launch; if none remains, " +
-      "end your turn and let the completion notice wake you. Do not sleep or poll for completion.",
-    promptSnippet: "Run a finite shell command in the background; get notified with its exit status",
+      "Run a shell command asynchronously in the current directory. Returns its PID and the path to a " +
+      "private temporary file containing combined stdout/stderr. Completion sends a notice with the exit " +
+      "code or signal and the same path—not command output. Commands must finish without leaving background " +
+      "processes. They belong to this running Pi process; exit, reload, or session replacement may stop them. " +
+      "Notices are best-effort.",
+    promptSnippet: "Run a command asynchronously and get notified when it finishes",
+    promptGuidelines: ["Do not poll for completion. Continue other work or end your turn to await the notice."],
     parameters: Parameters,
-    outputSchema: Type.Object({ output: Type.String() }),
+    outputSchema: Type.Object({
+      outputPath: Type.String({ description: "Path to the file containing combined stdout and stderr" }),
+      pid: Type.Integer({ description: "PID assigned to the launched shell; it may exit or be reused. Not a process-tree cancellation handle." }),
+    }),
     async execute(_toolCallId, { command }, signal, _onUpdate, ctx) {
       const settings = pi.getSettings();
       const shell = getShellConfig(settings.shellPath ? shellPath(settings.shellPath) : undefined);
@@ -69,9 +71,10 @@ export default function runAndNotify(pi: ExtensionAPI): void {
       const prefix = settings.shellCommandPrefix;
 
       const dir = await mkdtemp(join(tmpdir(), "pi-run-"));
-      const output = join(dir, "output.log");
+      const outputPath = join(dir, "output.log");
+      let pid: number;
       try {
-        const file = await open(output, "wx", 0o600);
+        const file = await open(outputPath, "wx", 0o600);
         try {
           const owner = running;
           if (signal?.aborted) throw new Error("Cancelled before launch");
@@ -84,17 +87,17 @@ export default function runAndNotify(pi: ExtensionAPI): void {
           });
           owner.add(child);
           try {
-            await new Promise<void>((resolve, reject) => {
+            pid = await new Promise<number>((resolve, reject) => {
               child.on("error", reject);
               child.once("spawn", () => {
                 // Attached synchronously so a fast exit cannot be missed.
                 child.once("close", (code, exitSignal) => {
                   if (running?.delete(child)) {
                     // Node reports exactly one of code and signal.
-                    notify(output, exitSignal ? { kind: "signal", signal: exitSignal } : { kind: "exit", code: code ?? 1 });
+                    notify(outputPath, exitSignal ? { kind: "signal", signal: exitSignal } : { kind: "exit", code: code ?? 1 });
                   }
                 });
-                resolve();
+                resolve(child.pid!); // Node assigns the PID before emitting spawn.
               });
             });
           } catch (error) {
@@ -112,19 +115,22 @@ export default function runAndNotify(pi: ExtensionAPI): void {
         content: [
           {
             type: "text",
-            text: `Started. Combined output: ${output}\nA notice with the exit status follows when the command exits.`,
+            text: `Started. PID: ${pid}. Output file: ${outputPath}`,
           },
         ],
-        details: { output },
-        structuredContent: { output },
+        details: { outputPath, pid },
+        structuredContent: { outputPath, pid },
       };
     },
   });
 
   pi.on("session_shutdown", async () => {
-    const children = running;
-    running = undefined;
-    if (children) await terminate([...children]);
+    if (running) {
+      const children = [...running];
+      running = undefined;
+      cleanup = terminate(children);
+    }
+    await cleanup;
   });
 }
 

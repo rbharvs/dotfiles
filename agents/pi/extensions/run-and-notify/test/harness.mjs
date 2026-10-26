@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai";
 import {
-  createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager,
+  createAgentSession, createCodemodeExtension, DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import runAndNotify from "../index.ts";
@@ -59,7 +59,7 @@ export async function startSession(t, { responses, settings = {}, gate = async (
   const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } });
   const resourceLoader = new DefaultResourceLoader({
     cwd, agentDir, settingsManager, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true,
-    extensionFactories: [observed, gateTool],
+    extensionFactories: [observed, gateTool, createCodemodeExtension({ models: false })],
   });
   await resourceLoader.reload();
   const { session } = await createAgentSession({
@@ -69,6 +69,7 @@ export async function startSession(t, { responses, settings = {}, gate = async (
   await session.bindExtensions({ mode: "rpc" });
   // Apply after startup reloads, just as command-line/session overrides affect the live session.
   settingsManager.applyOverrides(settings);
+  session.setActiveToolsByName([...session.getActiveToolNames(), "codemode"]);
 
   // Same order as AgentSessionRuntime.dispose(): the quit shutdown event, then invalidation.
   t.after(async () => {
@@ -96,7 +97,7 @@ export async function startSession(t, { responses, settings = {}, gate = async (
     },
     entries: () => session.sessionManager.getEntries(),
     notices: () => session.sessionManager.getEntries().filter((e) => e.type === "custom_message" && e.customType === NOTICE_TYPE),
-    outputOf: (toolCallId) => toolResults.find((e) => e.toolCallId === toolCallId)?.result.details?.output,
+    outputOf: (toolCallId) => toolResults.find((e) => e.toolCallId === toolCallId)?.result.details?.outputPath,
   };
 }
 

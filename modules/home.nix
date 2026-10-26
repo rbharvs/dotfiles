@@ -18,6 +18,7 @@ let
     "alignment"
     "code-review"
     "librarian"
+    "pi-delegation"
   ];
 in
 {
