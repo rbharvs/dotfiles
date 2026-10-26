@@ -12,8 +12,7 @@ let
   extensions = [
     "statusline.ts"
     "anthropic-web"
-    "background-agent"
-    "session-naming"
+    "run-and-notify"
   ];
   skills = [
     "alignment"

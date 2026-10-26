@@ -2,8 +2,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-strip-types --test background-agent/test/*.test.mjs session-naming/test/*.test.mjs anthropic-web/test/*.test.mjs test/*.test.mjs",
-    "typecheck": "tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node statusline.ts background-agent/index.ts session-naming/index.ts anthropic-web/index.ts"
+    "test": "node --experimental-strip-types --test run-and-notify/test/*.test.mjs anthropic-web/test/*.test.mjs test/*.test.mjs",
+    "typecheck": "tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node statusline.ts run-and-notify/index.ts anthropic-web/index.ts"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "1.4.0",

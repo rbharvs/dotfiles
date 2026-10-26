@@ -44,6 +44,11 @@ when its local settings file is absent. Subsequent settings changes, model overr
 credentials, trust decisions, sessions, and caches stay in Pi's local directory.
 Existing files and symlinks are preserved during activation.
 
+Pi's [`run_and_notify`](agents/pi/extensions/run-and-notify/README.md) tool runs
+finite foreground commands asynchronously and reports completion with an output-file
+path. Delegation and naming use Pi's native CLI and session features; there is no
+custom background-agent manager or automatic session naming.
+
 Each project owns its language versions and dependencies. Use its existing tooling
 first, then `nix run` or `nix shell --command` for occasional tools. For example:
 
