@@ -1,6 +1,7 @@
 {
   "theme": "rose-pine",
   "quietStartup": true,
+  "showHardwareCursor": true,
   "collapseChangelog": true,
   "enableInstallTelemetry": false
 }
