@@ -56,6 +56,11 @@ in
       screencapture.location = "${homeDirectory}/Downloads";
     };
 
+    environment.variables = {
+      EDITOR = "vim";
+      VISUAL = "vim";
+    };
+
     environment.systemPackages = [
       pi
       herdr
