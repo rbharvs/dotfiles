@@ -16,6 +16,7 @@ let
   ];
   skills = [
     "alignment"
+    "av-analysis"
     "code-review"
     "librarian"
     "pi-delegation"
